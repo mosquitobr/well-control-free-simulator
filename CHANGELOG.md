@@ -3,6 +3,13 @@
 All notable changes to **Well Control Free Simulator** are documented in this file.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] — 2026-11-27
+
+### Added
+- Signed release Android APK (`WellControlFreeSimulator-1.0.1-android.apk`) verified with `apksigner verify` via encrypted GitHub Actions signing secrets.
+- Upgraded Windows release workflow to official **SignPath Foundation v3** GitHub Artifact Origin Verification (`actions/upload-artifact@v4` + `signpath/github-action-submit-signing-request@v3`) and automated MSI `ProductCode` extraction for Winget manifests.
+- Added active GitHub Repository Rulesets protecting `main` and `v*` release tags.
+
 ## [1.0.0] — 2026-11-27
 
 ### Added
