@@ -144,8 +144,10 @@ object SimulationResultStore {
     private fun writeAll(results: List<SimulationResult>) {
         val array = buildJsonArray { results.forEach { add(it.toJson()) } }
         val file = storeFile()
-        file.parentFile?.mkdirs()
-        file.writeText(prettyJson.encodeToString(JsonArray.serializer(), array), Charsets.UTF_8)
+        com.mosquitobr.controlepoco.platform.AtomicFileWriter.writeTextAtomically(
+            file,
+            prettyJson.encodeToString(JsonArray.serializer(), array)
+        )
     }
 
     fun createFromSnapshot(

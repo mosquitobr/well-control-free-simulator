@@ -242,7 +242,13 @@ data class SimSnapshot(
     var migrationOverpressureKPa: Double = 0.0
 }
 
-class Simulator(val scenario: Scenario) {
+class Simulator(
+    val scenario: Scenario,
+    initialLanguage: String = "pt"
+) {
+    @Volatile
+    var language: String = initialLanguage
+
     private val well = scenario.well
     private val geometry = WellGeometry(well, scenario.drillString)
     private val pump = scenario.rig.pumps.first()
@@ -1849,7 +1855,7 @@ class Simulator(val scenario: Scenario) {
                 // eleva a pressão viva de revestimento sem alterar o par estabilizado fixo.
                 if (shutInStabilized && !wellKilledLatch) {
                     staticShutInSec += dt
-                    if (scenario.method == "Volumétrico" && kickConfig.type == InfluxType.GAS &&
+                    if (scenario.killMethod == KillMethod.VOLUMETRIC && kickConfig.type == InfluxType.GAS &&
                         influxVolumeM3 > 0.1 && staticShutInSec > 5.0
                     ) {
                         casingPressureKPa += 8.0 * dt
@@ -1857,7 +1863,7 @@ class Simulator(val scenario: Scenario) {
                 }
             }
             if (gasAtSurface && chokePct < 0.5 && influxVolumeM3 > 0.05 && !wellKilledLatch &&
-                scenario.method == "Volumétrico"
+                scenario.killMethod == KillMethod.VOLUMETRIC
             ) {
                 casingPressureKPa += 10.0 * dt
             }
@@ -2145,10 +2151,10 @@ class Simulator(val scenario: Scenario) {
         ) {
             guideWeightedUp = true
         }
-        if (scenario.method == "Tutorial" && pumpOn && scrTaken) {
+        if (scenario.killMethod == KillMethod.TUTORIAL && pumpOn && scrTaken) {
             guideTutorialDone = true
         }
-        if (scenario.method == "Emergência" && kickDetected && isClosed() &&
+        if (scenario.killMethod == KillMethod.EMERGENCY && kickDetected && isClosed() &&
             !gasReachedSurface && timeSec > 0.0
         ) {
             guideEdsProtected = true
@@ -3077,11 +3083,11 @@ class Simulator(val scenario: Scenario) {
      * - No Wait & Weight, permite iniciar diretamente após estabilizar e pesar a lama.
      */
     fun startSecondCirculation(): Boolean {
-        val waitAndWeightReady = scenario.method == "Wait & Weight" &&
+        val waitAndWeightReady = scenario.killMethod == KillMethod.WAIT_AND_WEIGHT &&
             (phase == Phase.STABILIZED || (phase == Phase.SHUT_IN && shutInStabilized))
         if (phase != Phase.KICK_CONTROLLED && !waitAndWeightReady) {
             setMessage(
-                if (scenario.method == "Wait & Weight") {
+                if (scenario.killMethod == KillMethod.WAIT_AND_WEIGHT) {
                     "Aguarde estabilizar SIDPP/SICP e pese a lama antes da circulação Wait & Weight."
                 } else {
                     "Conclua a 1ª circulação e mantenha a pressão trapada antes da 2ª circulação."
@@ -3120,14 +3126,14 @@ class Simulator(val scenario: Scenario) {
         guideWeightedUp = true
         if (chokeAuto) chokeSetpointKPa = killCasingTargetKPa()
         addMilestone(
-            if (scenario.method == "Wait & Weight") {
+            if (scenario.killMethod == KillMethod.WAIT_AND_WEIGHT) {
                 "Circulação Wait & Weight iniciada: lama de matar a caminho da broca"
             } else {
                 "2ª circulação iniciada: lama de matar a caminho da broca"
             }
         )
         setMessage(
-            if (scenario.method == "Wait & Weight") {
+            if (scenario.killMethod == KillMethod.WAIT_AND_WEIGHT) {
                 "Wait & Weight: siga ICP → FCP e mantenha o choke no kill sheet."
             } else {
                 "2ª circulação: siga ICP → FCP e mantenha o choke no kill sheet."
@@ -3245,10 +3251,10 @@ class Simulator(val scenario: Scenario) {
         if (gasAtSurface && influxVolumeM3 > 0.0) {
             influxVolumeM3 = max(0.0, influxVolumeM3 - volumeM3 * 0.8)
         }
-        if (scenario.method == "Volumétrico") {
+        if (scenario.killMethod == KillMethod.VOLUMETRIC) {
             guideVolumetricBleedDone = true
         }
-        if (scenario.method == "Lubrificar & sangrar" && lubricateVolumeAddedM3 > 0.0) {
+        if (scenario.killMethod == KillMethod.LUBRICATE_AND_BLEED && lubricateVolumeAddedM3 > 0.0) {
             guideLubricateDone = true
         }
         setMessage("Sangrado ${Units.fmt(Units.m3ToBbl(volumeM3), 1)} bbl")
@@ -3447,8 +3453,11 @@ class Simulator(val scenario: Scenario) {
     fun killSheetResult(): KillSheetResult? {
         // Sem kick no ciclo atual não existe kill sheet: a planilha é um
         // documento do poço fechado, não um cálculo livre de lama.
-        if (!kickDetected && !killSequenceActive) return killSheetFrozen
-        return killSheetFrozen ?: computeKillSheet()
+        if (!kickDetected && !killSequenceActive) {
+            return killSheetFrozen?.let { CoreI18n.localizeKillSheet(it, language) }
+        }
+        val base = killSheetFrozen ?: computeKillSheet()
+        return base?.let { CoreI18n.localizeKillSheet(it, language) }
     }
 
     private fun computeKillSheet(): KillSheetResult? {
@@ -3477,7 +3486,8 @@ class Simulator(val scenario: Scenario) {
                 waterDepthM = well.riser?.waterDepthM ?: 0.0,
                 subsea = well.isSubsea,
                 scrEstimated = !scrTaken,
-                marginKgM3 = scenario.mud.killMarginKgM3
+                marginKgM3 = scenario.mud.killMarginKgM3,
+                lang = language
             )
         )
     }
@@ -3592,7 +3602,7 @@ class Simulator(val scenario: Scenario) {
             torqueKNm = torqueKNm,
             cuttingsLoad = cuttingsLoad,
             bitWear = bitWear,
-            formationName = formationName,
+            formationName = CoreI18n.translate(formationName, language),
             formationType = formationType,
             formationHardness = formationHardness,
             mudDensityKgM3 = mudDensityKgM3,
@@ -3640,16 +3650,16 @@ class Simulator(val scenario: Scenario) {
             accumulatorKPa = accumulatorKPa,
             bopClosed = bopClosed.toSet(),
             closedBop = isClosed(),
-            alarms = alarms.toList(),
+            alarms = alarms.map { it.copy(detail = CoreI18n.translate(it.detail, language)) },
             trends = trends.toList(),
             score = score(),
             kickDetected = kickDetected,
             shutIn = shutIn,
-            failures = failures.toList(),
+            failures = failures.map { CoreI18n.translate(it, language) },
             totalStrokes = totalStrokes,
             killSheet = killSheetResult(),
-            message = message,
-            recommendations = recommendations.toList(),
+            message = message?.let { CoreI18n.translate(it, language) },
+            recommendations = recommendations.map { CoreI18n.translate(it, language) },
             riserMarginKPa = riserMarginKPa(),
             maxCasingKPa = maxCasing,
             maxShoeKPa = maxShoe,
@@ -3661,7 +3671,7 @@ class Simulator(val scenario: Scenario) {
             chokeLineup = chokeLineup,
             lineupValid = lineupValid(),
             holeFillM3 = holeFillM3,
-            milestones = milestones.toList(),
+            milestones = milestones.map { CoreI18n.translate(it, language) },
             procedure = procedureSnapshot(),
             bitIncDeg = well.incAtMd(bitDepthM),
             holeIncDeg = well.incAtMd(max(well.mdM, bitDepthM)),
@@ -3695,7 +3705,7 @@ class Simulator(val scenario: Scenario) {
             trappedPressureKPa = trappedPressureKPa,
             readyToOpen = phase == Phase.KILLED && allRequiredLinesDisplaced() &&
                 casingPressureKPa <= 200.0 && wellDead(),
-            openBopBlockedReason = openBopBlockReason(),
+            openBopBlockedReason = openBopBlockReason()?.let { CoreI18n.translate(it, language) },
             firstCirculationReady = firstCirculationReady,
             activeChokeIndex = activeChokeIndex,
             activeChokeName = activeChoke().name,

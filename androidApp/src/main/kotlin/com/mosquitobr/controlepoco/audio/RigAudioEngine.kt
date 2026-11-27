@@ -31,9 +31,10 @@ class RigAudioEngine {
 
     @Volatile private var running = false
     @Volatile private var alarmEndMs = 0L
-    private var thread: Thread? = null
-    private var track: AudioTrack? = null
+    @Volatile private var thread: Thread? = null
+    @Volatile private var track: AudioTrack? = null
 
+    @Synchronized
     fun start() {
         if (running) return
         running = true
@@ -44,14 +45,17 @@ class RigAudioEngine {
         }
     }
 
+    @Synchronized
     fun stop() {
         running = false
-        runCatching { thread?.join(400) }
+        val currentThread = thread
         thread = null
-        runCatching { track?.pause() }
-        runCatching { track?.flush() }
-        runCatching { track?.release() }
+        runCatching { currentThread?.join(400) }
+        val currentTrack = track
         track = null
+        runCatching { currentTrack?.pause() }
+        runCatching { currentTrack?.flush() }
+        runCatching { currentTrack?.release() }
     }
 
     fun triggerAlarm() {

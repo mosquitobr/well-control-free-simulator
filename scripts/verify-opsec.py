@@ -16,7 +16,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 
-SKIP_DIRS = {".git", ".gradle", ".kotlin", "build", "dist", "out", "__pycache__"}
+SKIP_DIRS = {".git", ".gradle", ".kotlin", "build", "dist", "out", "__pycache__", ".reversa", "_reversa_sdd", "_reversa_forward", ".agents"}
 TEXT_EXTS = {
     ".kt", ".kts", ".java", ".xml", ".md", ".txt", ".yml", ".yaml",
     ".properties", ".toml", ".py", ".sh", ".ps1", ".cmd", ".desktop",

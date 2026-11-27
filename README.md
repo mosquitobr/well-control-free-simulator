@@ -35,6 +35,7 @@ All screenshots below are captured directly from the running simulator in Englis
 - **Interactive Kill Sheet & Debriefing:** Live computation of Kill Mud Weight (KMW), Initial/Final Circulating Pressures (ICP/FCP), MAASP, pump stroke schedules, scoring, and local JSON result export.
 - **Procedural Rig Audio:** Synthesized pump strokes, rotary drive, gas-at-surface acoustics, and alarm cues (100% procedural — zero third-party audio samples).
 - **Bilingual & Multi-Unit:** Instant switching between **Portuguese (PT-BR)** and **English (EN)**, and **Petrobras**, **US Field**, and **SI** units.
+- **Desktop Keyboard Shortcuts:** `Space` (Play/Pause), `1`–`9` (switch simulator tabs), `K` (Kill Sheet), `Esc` (Back).
 
 ---
 

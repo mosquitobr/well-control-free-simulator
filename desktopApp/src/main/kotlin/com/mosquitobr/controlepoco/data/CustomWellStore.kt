@@ -48,8 +48,10 @@ object CustomWellStore {
             wells.forEach { add(encode(it)) }
         }
         val file = storeFile()
-        file.parentFile?.mkdirs()
-        file.writeText(prettyJson.encodeToString(JsonArray.serializer(), array), Charsets.UTF_8)
+        com.mosquitobr.controlepoco.platform.AtomicFileWriter.writeTextAtomically(
+            file,
+            prettyJson.encodeToString(JsonArray.serializer(), array)
+        )
     }
 
     fun upsert(well: CustomWellSpec): List<CustomWellSpec> {

@@ -10,7 +10,7 @@
 
 **Well Control Free Simulator** (*Controle de Poço 2*) é um simulador educacional gratuito, de código aberto (**Apache-2.0**) e **100% offline** para engenharia de controle de poço em petróleo e gás, distribuído nativamente para **Windows 11**, **Linux / WSL2** e **Android**.
 
-As três plataformas compartilham exatamente o mesmo motor físico em Kotlin puro (`:core`, coberto por 80 testes automatizados), modelando pressão hidrostática, influxo e migração de gás, hidráulica de choke/manifold, folha de matar (*Kill Sheet*) e **19 cenários progressivos** terrestres e submarinos (Método do Sondador, Aguardar e Pesar, Volumétrico, Lubrificar e Sangrar, Manobras/Trip Tank e EDS).
+As três plataformas compartilham exatamente o mesmo motor físico em Kotlin puro (`:core`, coberto por 80+ testes automatizados), modelando pressão hidrostática, influxo e migração de gás, hidráulica de choke/manifold, **Kill Sheet** e **19 cenários progressivos** terrestres e submarinos (Método do Sondador, Aguardar e Pesar, Volumétrico, Lubrificar e Sangrar, Manobras/Trip Tank e EDS).
 
 > **Aviso Educacional:** Este é um simulador educacional independente. **Não** é afiliado, endossado ou certificado pelo IADC, IWCF, API ou ANP e não deve ser utilizado em operações reais de poço. Siga sempre o programa de controle de poço e os procedimentos da sua operação.
 
@@ -23,8 +23,8 @@ Capturas reais do simulador em operação (suporta troca instantânea entre **PT
 | Tela Inicial & Catálogo de 19 Cenários | Simulação de Kick & Shut-in (Esquemático + Choke/BOP) |
 | :---: | :---: |
 | ![Tela inicial e catálogo de cenários](docs/screenshots/01-scenarios-home.png) | ![Simulação ativa com esquemático do poço e painel de choke](docs/screenshots/02-simulation-kick-shutin.png) |
-| **Tendências de Pressão e Ganho de Tanque** | **Folha de Matar (KMW, ICP, FCP, MAASP)** |
-| ![Painel de tendências e métricas em tempo real](docs/screenshots/03-trends-metrics.png) | ![Folha de matar com tabela de circulação](docs/screenshots/04-kill-sheet.png) |
+| **Tendências de Pressão e Ganho de Tanque** | **Kill Sheet (KMW, ICP, FCP, MAASP)** |
+| ![Painel de tendências e métricas em tempo real](docs/screenshots/03-trends-metrics.png) | ![Kill Sheet com tabela de circulação](docs/screenshots/04-kill-sheet.png) |
 
 ---
 
@@ -33,6 +33,7 @@ Capturas reais do simulador em operação (suporta troca instantânea entre **PT
 Todos os instaladores oficiais e hashes (`SHA256SUMS.txt`) estão disponíveis na página de [GitHub Releases](https://github.com/mosquitobr/well-control-free-simulator/releases).
 
 ### Windows 11 (x64)
+- **Atalhos de teclado no Desktop:** `Espaço` (Play/Pause), `1`–`9` (abas do simulador), `K` (Kill Sheet), `Esc` (Voltar).
 - **Instalador MSI (recomendado):** baixe `WellControlFreeSimulator-<versão>-windows-x64.msi` (instalação por usuário, sem necessidade de privilégios de administrador).
 - **Portátil (ZIP):** baixe `WellControlFreeSimulator-<versão>-windows-x64-portable.zip`, extraia e execute `ControleDePoco2.exe`.
 - **Winget** *(após aprovação do manifesto em `microsoft/winget-pkgs`)*:

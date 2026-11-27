@@ -98,9 +98,9 @@ class ScreenshotCaptureTest {
                 )
             }
 
-            // Prepare a realistic live kick + shut-in scenario
+            // Prepare a realistic live kick + shut-in scenario in English
             val drillers = Scenarios.byId("drillers-surface")
-            val sim = Simulator(drillers)
+            val sim = Simulator(drillers, initialLanguage = "en")
             // Drill briefly, trigger & detect gas kick, stop pump, close Annular BOP, stabilize
             repeat(14) { sim.advance(2.0) }
             sim.setPump(false, 0.0)

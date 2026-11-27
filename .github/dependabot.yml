@@ -5,10 +5,26 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
+    groups:
+      kotlin-compose-toolchain:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.compose*"
+          - "org.jetbrains.kotlinx*"
     ignore:
       - dependency-name: "*"
         update-types:
           - version-update:semver-major
+      # Kotlin and Compose Multiplatform are tightly coupled; restrict auto-bumps to patches
+      - dependency-name: "org.jetbrains.kotlin*"
+        update-types:
+          - version-update:semver-minor
+      - dependency-name: "org.jetbrains.compose*"
+        update-types:
+          - version-update:semver-minor
+      - dependency-name: "org.jetbrains.kotlinx*"
+        update-types:
+          - version-update:semver-minor
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

@@ -52,8 +52,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.mosquitobr.controlepoco.platform.FileExporter
@@ -104,9 +112,14 @@ fun SimulatorScreen(
     val lang = LocalAppLanguage.current
     var generation by remember { mutableIntStateOf(0) }
     val simulator = remember(scenario.id, generation, initialSimulator) {
-        if (generation == 0 && initialSimulator != null) initialSimulator else Simulator(scenario)
+        if (generation == 0 && initialSimulator != null) initialSimulator.also { it.language = lang }
+        else Simulator(scenario, initialLanguage = lang)
     }
     var snapshot by remember(scenario.id, generation, initialSimulator) { mutableStateOf(simulator.snapshot()) }
+    LaunchedEffect(lang, simulator) {
+        simulator.language = lang
+        snapshot = simulator.snapshot()
+    }
     var started by remember { mutableStateOf(initialStarted) }
     var running by remember { mutableStateOf(false) }
     var speed by remember { mutableStateOf(1f) }
@@ -258,7 +271,35 @@ fun SimulatorScreen(
         )
     }
 
-    Column(Modifier.fillMaxSize()) {
+    val rootFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(started) {
+        if (started) runCatching { rootFocusRequester.requestFocus() }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .focusRequester(rootFocusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || !started) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.Spacebar -> { running = !running; true }
+                    Key.K -> { showKillSheet = !showKillSheet; true }
+                    Key.Escape -> { onBack(); true }
+                    Key.One -> { tab = 0; true }
+                    Key.Two -> { tab = 1; true }
+                    Key.Three -> { tab = 2; true }
+                    Key.Four -> { tab = 3; true }
+                    Key.Five -> { tab = 4; true }
+                    Key.Six -> { tab = 5; true }
+                    Key.Seven -> { tab = 6; true }
+                    Key.Eight -> { tab = 7; true }
+                    Key.Nine -> { tab = 8; true }
+                    else -> false
+                }
+            }
+    ) {
         SimTopBar(
             scenario = scenario,
             lang = lang,

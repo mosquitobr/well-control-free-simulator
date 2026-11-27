@@ -104,4 +104,11 @@ class DesktopStoresTest {
         SimulationResultStore.delete(result.id)
         assertTrue(SimulationResultStore.load().isEmpty())
     }
+
+    @Test
+    fun `escrita atomica nao deixa arquivos temporarios residuais`() {
+        SettingsStore.save(AppSettings(language = "en"))
+        val leftovers = tempRoot.walkTopDown().filter { it.isFile && it.name.endsWith(".tmp") }.toList()
+        assertTrue("Nenhum arquivo .tmp residual deve permanecer após escrita atômica", leftovers.isEmpty())
+    }
 }

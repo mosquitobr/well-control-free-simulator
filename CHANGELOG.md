@@ -3,6 +3,22 @@
 All notable changes to **Well Control Free Simulator** are documented in this file.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] — 2026-11-27
+
+### Added
+- Full English localization layer (`CoreI18n`) in `:core` covering operational banners, alarms, milestones, recommendations, and **Kill Sheet** warnings/stages, eliminating PT-BR string leakage in EN mode.
+- Typed `KillMethod` enum in `:core` replacing string-literal method checks in `Simulator`.
+- Atomic file persistence (`AtomicFileWriter`) for Desktop JSON stores (`SettingsStore`, `CustomWellStore`, `SimulationResultStore`).
+- Native Desktop keyboard shortcuts in `SimulatorScreen` (`Space` Play/Pause, `1`–`9` tabs, `K` Kill Sheet, `Esc` Back).
+- Automated regression tests for EN localization, atomic persistence, and `RigAudioEngine` rapid start/stop safety.
+
+### Changed
+- Deduplicated shared pure-Kotlin `PumpPulseSynth` and `Academy` modules into `:core`.
+- Synchronized `RigAudioEngine.start()`/`stop()` with `@Volatile` audio handles on both Desktop and Android.
+- Enabled R8 minification, resource shrinking, and `proguard-rules.pro` for Android release builds, and migrated to Gradle 9-ready `compilerOptions`.
+- Grouped coupled Kotlin/Compose/Coroutines updates in `.github/dependabot.yml` to prevent incompatible solo PRs.
+- Re-captured clean 100% English documentation screenshots (zero PT-BR leakage, zero PNG metadata).
+
 ## [1.0.1] — 2026-11-27
 
 ### Added

@@ -32,4 +32,16 @@ class PumpPulseSynthTest {
         // Só resta o ruído mecânico contínuo de baixíssimo nível.
         assertTrue("Bomba parada deve ficar praticamente silenciosa ($energy)", energy < 0.5)
     }
+
+    @Test
+    fun `rig audio engine suporta ciclos rapidos start e stop sem erro`() {
+        val engine = RigAudioEngine()
+        engine.enabled = false
+        repeat(5) {
+            engine.start()
+            engine.update(true, 45.0, true, 80.0, 20.0, false)
+            engine.stop()
+        }
+        assertTrue(true)
+    }
 }

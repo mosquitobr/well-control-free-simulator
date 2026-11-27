@@ -20,7 +20,9 @@ data class KillSheetInput(
     val subsea: Boolean = false,
     val scrEstimated: Boolean = false,
     /** Margem de segurança somada à KMW (kg/m³). */
-    val marginKgM3: Double = 0.0
+    val marginKgM3: Double = 0.0,
+    /** Idioma de exibição ("pt" ou "en") para avisos e estágios do Kill Sheet. */
+    val lang: String = "pt"
 )
 
 data class KillScheduleRow(
@@ -117,23 +119,26 @@ object KillSheetCalculator {
             rows.add(KillScheduleRow(stroke, spp, casing, stage))
         }
 
-        return KillSheetResult(
-            killMudKgM3 = killMud,
-            killMudPpg = Units.kgM3ToPpg(killMud),
-            killMudNoMarginKgM3 = killMudNoMargin,
-            marginKgM3 = margin,
-            icpKPa = icp,
-            fcpKPa = fcp,
-            maaspKPa = maasp,
-            maspKPa = masp,
-            sidppKPa = input.sidppKPa,
-            sicpKPa = input.sicpKPa,
-            strokesToBit = input.strokesToBit,
-            strokesToShoe = input.strokesToShoe,
-            totalStrokes = input.totalStrokes,
-            killRateLpm = input.killRateLpm,
-            schedule = rows,
-            warnings = warnings
+        return CoreI18n.localizeKillSheet(
+            KillSheetResult(
+                killMudKgM3 = killMud,
+                killMudPpg = Units.kgM3ToPpg(killMud),
+                killMudNoMarginKgM3 = killMudNoMargin,
+                marginKgM3 = margin,
+                icpKPa = icp,
+                fcpKPa = fcp,
+                maaspKPa = maasp,
+                maspKPa = masp,
+                sidppKPa = input.sidppKPa,
+                sicpKPa = input.sicpKPa,
+                strokesToBit = input.strokesToBit,
+                strokesToShoe = input.strokesToShoe,
+                totalStrokes = input.totalStrokes,
+                killRateLpm = input.killRateLpm,
+                schedule = rows,
+                warnings = warnings
+            ),
+            input.lang
         )
     }
 }

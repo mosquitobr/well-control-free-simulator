@@ -81,7 +81,9 @@ object SettingsStore {
             put("sound_gas", settings.soundGas)
         }
         val file = settingsFile()
-        file.parentFile?.mkdirs()
-        file.writeText(prettyJson.encodeToString(JsonObject.serializer(), json), Charsets.UTF_8)
+        com.mosquitobr.controlepoco.platform.AtomicFileWriter.writeTextAtomically(
+            file,
+            prettyJson.encodeToString(JsonObject.serializer(), json)
+        )
     }
 }

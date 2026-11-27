@@ -2079,4 +2079,32 @@ class CoreTest {
         assertTrue("Influxo deve entrar normalmente", snap.influxM3 > 0.0)
     }
 
+    @Test
+    fun `modo ingles traduz mensagens alarmes marcos e avisos da kill sheet sem vazamento pt`() {
+        val scenario = Scenarios.byId("drillers-surface")
+        val sim = Simulator(scenario, initialLanguage = "en")
+        repeat(14) { sim.advance(2.0) }
+        sim.setPump(false, 0.0)
+        sim.closeBop(BopElement.ANNULAR)
+        repeat(10) { sim.advance(2.0) }
+
+        val snap = sim.snapshot()
+        val sheet = sim.killSheetResult()
+        assertNotNull("Kill sheet must be available in EN mode", sheet)
+        val ptAccentRegex = Regex("[ãõçáéíóúâêô]")
+
+        assertTrue("Expected EN BOP closed banner, got: ${snap.message}", snap.message?.startsWith("BOP closed:") == true)
+        assertTrue("Expected no PT accents in banner: ${snap.message}", !ptAccentRegex.containsMatchIn(snap.message ?: ""))
+        sheet!!.warnings.forEach { w ->
+            assertTrue("Kill Sheet warning leaked PT in EN mode: $w", !ptAccentRegex.containsMatchIn(w))
+        }
+        sheet.schedule.forEach { row ->
+            assertTrue("Kill Sheet stage leaked PT in EN mode: ${row.stage}", !ptAccentRegex.containsMatchIn(row.stage))
+        }
+        snap.alarms.forEach { alarm ->
+            assertTrue("Alarm detail leaked PT in EN mode: ${alarm.detail}", !ptAccentRegex.containsMatchIn(alarm.detail))
+        }
+        assertEquals(KillMethod.DRILLERS, scenario.killMethod)
+    }
+
 }

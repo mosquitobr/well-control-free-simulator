@@ -102,8 +102,12 @@ fun SimulatorScreen(
 ) {
     val lang = LocalAppLanguage.current
     var generation by remember { mutableIntStateOf(0) }
-    val simulator = remember(scenario.id, generation) { Simulator(scenario) }
+    val simulator = remember(scenario.id, generation) { Simulator(scenario, initialLanguage = lang) }
     var snapshot by remember(scenario.id, generation) { mutableStateOf(simulator.snapshot()) }
+    LaunchedEffect(lang, simulator) {
+        simulator.language = lang
+        snapshot = simulator.snapshot()
+    }
     var started by remember { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
     var speed by remember { mutableStateOf(1f) }

@@ -531,4 +531,5 @@ data class Scenario(
     fun description(lang: String) = if (lang == "en") descriptionEn else description
     fun objectives(lang: String) = if (lang == "en") objectivesEn else objectives
     fun briefing(lang: String) = if (lang == "en") briefingEn else briefing
+    val killMethod: KillMethod get() = CoreI18n.methodOf(method)
 }
