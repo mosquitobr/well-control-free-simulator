@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Well Control Free Simulator
+GenericName=Well Control Simulator
+Comment=100% offline educational well control simulator (Windows 11, Linux/WSL & Android)
+Exec=/opt/well-control-free-simulator/bin/ControleDePoco2
+Icon=well-control-free-simulator
+Terminal=false
+Categories=Education;Science;Engineering;
+Keywords=well control;drilling;bop;kick;simulator;education;
+StartupWMClass=com-mosquitobr-controlepoco-MainKt

@@ -1,0 +1,55 @@
+name: Bug report
+description: Reportar um problema reproduzível no simulador
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar. Não inclua dados sensíveis, keystore ou senhas.
+  - type: input
+    id: version
+    attributes:
+      label: Versão do app
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android / aparelho
+      placeholder: "Android 14, Samsung A54"
+    validations:
+      required: true
+  - type: input
+    id: scenario
+    attributes:
+      label: Cenário
+      placeholder: "drillers-surface"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. Abrir ...
+        2. Tocar em ...
+        3. Observar ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamento observado
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / capturas
+      description: Opcional. Use `adb logcat` apenas se tiver ADB; não é obrigatório.

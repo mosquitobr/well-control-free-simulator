@@ -1,0 +1,82 @@
+// Gradle init script to audit runtime dependencies for Apache-2.0 compatibility.
+// Usage: ./gradlew verifyRuntimeLicenses --init-script scripts/verify-licenses.gradle --no-daemon
+
+import groovy.xml.XmlSlurper
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.maven.MavenModule
+import org.gradle.maven.MavenPomArtifact
+import org.gradle.internal.component.external.model.DefaultModuleComponentIdentifier
+import org.gradle.api.internal.artifacts.DefaultModuleIdentifier
+
+allprojects { proj ->
+    proj.tasks.register("verifyRuntimeLicenses") {
+        doLast {
+            def targetConfigs = proj.configurations.findAll { cfg ->
+                cfg.canBeResolved && (cfg.name in ["runtimeClasspath", "releaseRuntimeClasspath"])
+            }
+            if (targetConfigs.isEmpty()) return
+
+            def components = new TreeMap<String, List<String>>()
+            targetConfigs.each { cfg ->
+                cfg.incoming.resolutionResult.allComponents.each { comp ->
+                    def id = comp.id
+                    if (id instanceof ModuleComponentIdentifier) {
+                        components["${id.group}:${id.module}:${id.version}".toString()] = [id.group, id.module, id.version]
+                    }
+                }
+            }
+
+            def pomCache = [:]
+            def resolvePom
+            resolvePom = { String g, String a, String v ->
+                def k = "${g}:${a}:${v}".toString()
+                if (pomCache.containsKey(k)) return pomCache[k]
+                def compId = DefaultModuleComponentIdentifier.newId(DefaultModuleIdentifier.newId(g, a), v)
+                def query = proj.dependencies.createArtifactResolutionQuery()
+                    .forComponents(compId)
+                    .withArtifacts(MavenModule, MavenPomArtifact)
+                    .execute()
+                def pomFile = null
+                query.resolvedComponents.each { rc ->
+                    rc.getArtifacts(MavenPomArtifact).each { art ->
+                        if (art instanceof org.gradle.api.artifacts.result.ResolvedArtifactResult) {
+                            pomFile = art.file
+                        }
+                    }
+                }
+                pomCache[k] = pomFile
+                return pomFile
+            }
+
+            def extractLicenses
+            extractLicenses = { File pomFile, int depth ->
+                if (pomFile == null || !pomFile.exists() || depth > 5) return []
+                def xml = new XmlSlurper(false, false).parse(pomFile)
+                def lics = xml.licenses.license.collect { it.name?.text()?.trim() ?: "" }.findAll { it }
+                if (!lics.isEmpty()) return lics
+                def pg = xml.parent?.groupId?.text()?.trim()
+                def pa = xml.parent?.artifactId?.text()?.trim()
+                def pv = xml.parent?.version?.text()?.trim()
+                if (pg && pa && pv) return extractLicenses(resolvePom(pg, pa, pv), depth + 1)
+                return []
+            }
+
+            def violations = []
+            components.each { key, gav ->
+                def lics = extractLicenses(resolvePom(gav[0], gav[1], gav[2]), 0)
+                def joined = lics.join(" | ")
+                def lower = joined.toLowerCase()
+                def forbidden = ["gpl", "agpl", "lgpl", "good, not evil", "json license"].any { lower.contains(it) }
+                def allowed = !lics.isEmpty() && ["apache", "mit", "bsd", "isc"].any { lower.contains(it) }
+                if (forbidden || !allowed) {
+                    violations << "${key} -> [${joined ?: 'MISSING'}]"
+                }
+            }
+
+            if (!violations.isEmpty()) {
+                throw new GradleException("Incompatible or unverified runtime license(s) in ${proj.path}:\n  - " + violations.join("\n  - "))
+            }
+            println "[OK] ${proj.path}: ${components.size()} runtime dependencies verified (100% Apache-2.0 / permissive compatible)."
+        }
+    }
+}

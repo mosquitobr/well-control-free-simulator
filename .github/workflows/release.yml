@@ -1,0 +1,310 @@
+name: Release (Windows 11, Linux/WSL & Android)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Pre-Release OPSEC & Parity Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: OPSEC check
+        run: python3 scripts/verify-opsec.py
+      - name: i18n & terminology parity check
+        run: python3 scripts/verify-parity.py
+
+  package-windows:
+    name: Package Windows 11 (MSI + Portable ZIP + SignPath)
+    needs: [ verify ]
+    runs-on: windows-2022
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify Windows runtime licenses
+        shell: pwsh
+        run: .\gradlew.bat verifyRuntimeLicenses -PenableAndroid=false --init-script scripts/verify-licenses.gradle --no-daemon
+
+      - name: Test & Package Windows MSI + Distributable
+        shell: pwsh
+        run: .\gradlew.bat :core:test :desktopApp:test :desktopApp:packageMsi :desktopApp:createDistributable -PenableAndroid=false --no-daemon --stacktrace
+
+      - name: Include Apache-2.0 notices in portable bundle
+        shell: pwsh
+        run: |
+          $appDir = "desktopApp\build\compose\binaries\main\app\ControleDePoco2"
+          Copy-Item LICENSE, NOTICE, THIRD-PARTY-NOTICES.txt -Destination $appDir -Force
+
+      - name: Stage unsigned MSI
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist, staging | Out-Null
+          $msi = Get-ChildItem "desktopApp\build\compose\binaries\main\msi\*.msi" | Select-Object -First 1
+          Copy-Item $msi.FullName "staging\installer-unsigned.msi"
+
+      # -----------------------------------------------------------------------
+      # SignPath Foundation (Free OSS Code Signing for Windows SmartScreen)
+      # Configure after the repository is public and approved by SignPath.io:
+      #   Secrets:
+      #     - SIGNPATH_API_TOKEN  (required to enable automatic signing)
+      #     - SIGNPATH_ORG_ID     (required to enable automatic signing)
+      #   Variables (optional overrides; defaults below):
+      #     - SIGNPATH_PROJECT_SLUG          (default: well-control-free-simulator)
+      #     - SIGNPATH_SIGNING_POLICY_SLUG   (default: release-signing)
+      #     - SIGNPATH_ARTIFACT_CONFIG_SLUG  (default: msi-installer)
+      # See docs/SIGNPATH_AND_WINGET.md for the full onboarding guide.
+      # -----------------------------------------------------------------------
+      - name: Check SignPath Foundation configuration
+        id: signpath_check
+        shell: pwsh
+        env:
+          HAS_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
+          HAS_ORG: ${{ secrets.SIGNPATH_ORG_ID != '' }}
+        run: |
+          if ($env:HAS_TOKEN -eq 'true' -and $env:HAS_ORG -eq 'true') {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "[SignPath] Secrets detected — Windows MSI will be submitted for SignPath Foundation code signing."
+          } else {
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Warning "[SignPath] SIGNPATH_API_TOKEN / SIGNPATH_ORG_ID not configured yet. Publishing unsigned MSI (see docs/SIGNPATH_AND_WINGET.md)."
+          }
+
+      - name: Sign Windows MSI with SignPath Foundation
+        if: steps.signpath_check.outputs.enabled == 'true'
+        uses: SignPath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'well-control-free-simulator' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_SLUG || 'msi-installer' }}
+          input-file: staging/installer-unsigned.msi
+          output-file: dist/WellControlFreeSimulator-signed.msi
+          wait-for-completion: true
+
+      - name: Finalize Windows artifacts, SHA-256 & Winget manifest
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $finalMsi = "dist\WellControlFreeSimulator-${version}-windows-x64.msi"
+          if (Test-Path "dist\WellControlFreeSimulator-signed.msi") {
+            Move-Item "dist\WellControlFreeSimulator-signed.msi" $finalMsi -Force
+          } else {
+            Copy-Item "staging\installer-unsigned.msi" $finalMsi -Force
+          }
+
+          $portableZip = "dist\WellControlFreeSimulator-${version}-windows-x64-portable.zip"
+          Compress-Archive -Path "desktopApp\build\compose\binaries\main\app\ControleDePoco2\*" -DestinationPath $portableZip -Force
+
+          # Compute MSI SHA-256 for Winget manifest
+          $msiHash = (Get-FileHash $finalMsi -Algorithm SHA256).Hash.ToUpper()
+          python scripts/generate-winget-manifest.py --version $version --sha256 $msiHash --output-dir "dist\winget-manifest"
+          Compress-Archive -Path "dist\winget-manifest\*" -DestinationPath "dist\WellControlFreeSimulator-${version}-winget-manifest.zip" -Force
+          Remove-Item -Recurse -Force "dist\winget-manifest"
+
+          Get-ChildItem dist\* -File | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)" | Out-File -Encoding ascii "$($_.FullName).sha256"
+          }
+
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: dist/*
+
+  package-linux:
+    name: Package Linux / WSL (DEB + Portable TAR.GZ + Uber JAR)
+    needs: [ verify ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Linux packaging tools
+        run: sudo apt-get update && sudo apt-get install -y fakeroot binutils
+
+      - name: Verify Linux runtime licenses
+        run: |
+          chmod +x ./gradlew
+          ./gradlew verifyRuntimeLicenses -PenableAndroid=false --init-script scripts/verify-licenses.gradle --no-daemon
+
+      - name: Test & Package Linux DEB, Distributable & Uber JAR
+        run: ./gradlew :core:test :desktopApp:test :desktopApp:packageDeb :desktopApp:createDistributable :desktopApp:packageUberJarForCurrentOS -PenableAndroid=false --no-daemon --stacktrace
+
+      - name: Stage Linux artifacts & SHA-256
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          cp LICENSE NOTICE THIRD-PARTY-NOTICES.txt desktopApp/build/compose/binaries/main/app/ControleDePoco2/
+          DEB_FILE="$(ls desktopApp/build/compose/binaries/main/deb/*.deb | head -n 1)"
+          JAR_FILE="$(ls desktopApp/build/compose/jars/*.jar | head -n 1)"
+          cp "$DEB_FILE" "dist/WellControlFreeSimulator-${VERSION}-linux-x64.deb"
+          cp "$JAR_FILE" "dist/WellControlFreeSimulator-${VERSION}-linux-x64-uber.jar"
+          tar -C desktopApp/build/compose/binaries/main/app -czf "dist/WellControlFreeSimulator-${VERSION}-linux-x64-portable.tar.gz" ControleDePoco2
+          (
+            cd dist
+            for f in WellControlFreeSimulator-*; do
+              sha256sum "$f" > "${f}.sha256"
+            done
+          )
+
+      - name: Upload Linux release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: dist/*
+
+  package-android:
+    name: Package Android (APK)
+    needs: [ verify ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode signing keystore (when configured)
+        id: android_sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE_BASE64" && -n "$STORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" ]]; then
+            mkdir -p keystore
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > keystore/release.jks
+            {
+              echo "storeFile=keystore/release.jks"
+              echo "storePassword=$STORE_PASSWORD"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=$KEY_PASSWORD"
+            } > keystore/keystore.properties
+            chmod 600 keystore/release.jks keystore/keystore.properties
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Android release signing secrets not configured; publishing unsigned release APK."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Audit Android runtime licenses
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :androidApp:verifyRuntimeLicenses -PenableAndroid=true --init-script scripts/verify-licenses.gradle --no-daemon
+
+      - name: Run unit tests & build release APK
+        run: ./gradlew :core:test :androidApp:testDebugUnitTest :androidApp:assembleRelease -PenableAndroid=true --no-daemon --stacktrace
+
+      - name: Verify APK signature (when signed)
+        if: steps.android_sign.outputs.signed == 'true'
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose \
+            androidApp/build/outputs/apk/release/androidApp-release.apk
+
+      - name: Stage Android APK & SHA-256
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          if [[ "${{ steps.android_sign.outputs.signed }}" == "true" ]]; then
+            cp androidApp/build/outputs/apk/release/androidApp-release.apk "dist/WellControlFreeSimulator-${VERSION}-android.apk"
+          else
+            cp androidApp/build/outputs/apk/release/androidApp-release-unsigned.apk "dist/WellControlFreeSimulator-${VERSION}-android-unsigned.apk"
+          fi
+          (
+            cd dist
+            for f in *.apk; do
+              sha256sum "$f" > "${f}.sha256"
+            done
+          )
+
+      - name: Clean up signing material
+        if: always()
+        run: rm -rf keystore
+
+      - name: Upload Android release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: dist/*
+
+  publish-release:
+    name: Publish Multiplatform GitHub Release
+    needs: [ package-windows, package-linux, package-android ]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Build consolidated SHA256SUMS.txt
+        run: |
+          set -euo pipefail
+          cd release-assets
+          cat *.sha256 | sort -k2 > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

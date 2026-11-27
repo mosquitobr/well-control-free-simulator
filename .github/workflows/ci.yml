@@ -1,0 +1,125 @@
+name: CI (Android, Windows 11 & Linux/WSL)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compliance-and-opsec:
+    name: OPSEC, Parity & Runtime License Audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run OPSEC scanner
+        run: python3 scripts/verify-opsec.py
+
+      - name: Run i18n parity & terminology checks
+        run: python3 scripts/verify-parity.py
+
+      - name: Audit runtime dependencies (Apache-2.0 compliance)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew verifyRuntimeLicenses -PenableAndroid=false --init-script scripts/verify-licenses.gradle --no-daemon
+
+  desktop:
+    name: Desktop Build & Test (${{ matrix.os }})
+    needs: [ compliance-and-opsec ]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-24.04, windows-2022 ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run unit tests & build Uber JAR
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :core:test :desktopApp:test :desktopApp:packageUberJarForCurrentOS -PenableAndroid=false --no-daemon --stacktrace
+
+      - name: Build distributable app-image
+        shell: bash
+        run: ./gradlew :desktopApp:createDistributable -PenableAndroid=false --no-daemon --stacktrace
+
+      - name: Upload Uber JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: well-control-desktop-${{ matrix.os }}
+          path: desktopApp/build/compose/jars/*.jar
+          if-no-files-found: error
+
+  android:
+    name: Android Build, Tests & License Audit
+    needs: [ compliance-and-opsec ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Audit Android runtime licenses (Apache-2.0)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :androidApp:verifyRuntimeLicenses -PenableAndroid=true --init-script scripts/verify-licenses.gradle --no-daemon
+
+      - name: Run unit tests & build debug APK
+        run: ./gradlew :core:test :androidApp:testDebugUnitTest :androidApp:assembleDebug -PenableAndroid=true --no-daemon --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: well-control-android-debug
+          path: androidApp/build/outputs/apk/debug/androidApp-debug.apk
+          if-no-files-found: error

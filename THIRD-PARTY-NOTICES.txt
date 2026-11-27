@@ -1,0 +1,101 @@
+================================================================================
+THIRD-PARTY SOFTWARE NOTICES AND INFORMATION
+Well Control Free Simulator (Apache License 2.0)
+================================================================================
+
+This project incorporates or bundles the following third-party open-source
+components. All runtime application libraries for Android, Windows, and Linux
+are licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+1. APPLICATION RUNTIME LIBRARIES (Apache License 2.0)
+--------------------------------------------------------------------------------
+
+- Kotlin Standard Library (org.jetbrains.kotlin:kotlin-stdlib)
+  Copyright (c) JetBrains s.r.o. and Kotlin Programming Language contributors
+  License: Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+
+- Kotlinx Coroutines (org.jetbrains.kotlinx:kotlinx-coroutines-core, -swing, -android)
+  Copyright (c) JetBrains s.r.o.
+  License: Apache License, Version 2.0
+
+- Kotlinx Serialization JSON (org.jetbrains.kotlinx:kotlinx-serialization-json)
+  Copyright (c) JetBrains s.r.o.
+  License: Apache License, Version 2.0
+
+- Kotlinx AtomicFU & Kotlinx DateTime (org.jetbrains.kotlinx:atomicfu, kotlinx-datetime)
+  Copyright (c) JetBrains s.r.o.
+  License: Apache License, Version 2.0
+
+- JetBrains Annotations (org.jetbrains:annotations)
+  Copyright (c) JetBrains s.r.o.
+  License: Apache License, Version 2.0
+
+- Compose Multiplatform Desktop (org.jetbrains.compose.*)
+  Copyright (c) JetBrains s.r.o. and The Android Open Source Project
+  License: Apache License, Version 2.0
+
+- AndroidX & Jetpack Compose (androidx.*)
+  Copyright (c) The Android Open Source Project
+  License: Apache License, Version 2.0
+
+- Guava ListenableFuture (com.google.guava:listenablefuture, Android runtime)
+  Copyright (c) The Guava Authors
+  License: Apache License, Version 2.0
+
+--------------------------------------------------------------------------------
+2. SKIKO & EMBEDDED NATIVE GRAPHICS LIBRARIES (Windows & Linux Desktop)
+--------------------------------------------------------------------------------
+
+- Skiko (org.jetbrains.skiko:skiko-awt, skiko-awt-runtime-windows-x64,
+  skiko-awt-runtime-linux-x64, skiko-awt-runtime-linux-arm64)
+  Copyright (c) JetBrains s.r.o.
+  License: Apache License, Version 2.0
+
+The native Skiko shared libraries (skiko-windows-x64.dll, libskiko-linux-x64.so,
+libskiko-linux-arm64.so) statically link Google Skia and its permissive C/C++
+third-party dependencies, including:
+
+- Google Skia Graphics Library
+  Copyright (c) Google Inc.
+  License: BSD 3-Clause License (https://skia.org/docs/user/license/)
+
+- FreeType (used under the permissive FreeType License option)
+  Portions of this software are copyright (c) The FreeType Project
+  (www.freetype.org). All rights reserved.
+  License: The FreeType Project License (FTL)
+
+- HarfBuzz
+  Copyright (c) The HarfBuzz Contributors
+  License: MIT License
+
+- zlib, libpng, libjpeg-turbo, ICU, ANGLE
+  License: Permissive BSD / MIT / zlib / ICU licenses
+
+--------------------------------------------------------------------------------
+3. BUNDLED JAVA RUNTIME IN DESKTOP INSTALLERS (Windows MSI/ZIP & Linux DEB/TAR)
+--------------------------------------------------------------------------------
+
+The standalone Desktop installers (.msi, .deb, portable .zip, portable .tar.gz)
+built with jpackage/jlink bundle a minimal unmodified Eclipse Temurin OpenJDK 21
+runtime image (modules: java.desktop, java.logging, java.xml, jdk.unsupported).
+
+- Eclipse Temurin (OpenJDK 21)
+  License: GNU General Public License, version 2, with the Classpath Exception
+           (GPL-2.0-with-classpath-exception)
+  License text & component notices: Preserved inside the runtime/legal/ folder
+  of every packaged desktop distribution.
+  Upstream source code: https://adoptium.net/ / https://github.com/adoptium/temurin21-binaries
+
+Under the Classpath Exception, combining the Apache-2.0 application with the
+unmodified OpenJDK runtime does not place the application code under the GPL.
+The Uber JAR distribution does not bundle OpenJDK.
+
+--------------------------------------------------------------------------------
+4. DEVELOPMENT & TEST-ONLY DEPENDENCIES (Not distributed in release binaries)
+--------------------------------------------------------------------------------
+
+- JUnit 4 (junit:junit:4.13.2) — Eclipse Public License 1.0 (testImplementation)
+- Hamcrest Core (org.hamcrest:hamcrest-core:1.3) — BSD 3-Clause (testImplementation)
+- Gradle build plugins (Android Gradle Plugin, Kotlin Gradle Plugin, JetBrains
+  Compose Gradle Plugin) — build-time only; not shipped in application binaries.

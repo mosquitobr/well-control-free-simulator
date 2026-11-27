@@ -1,0 +1,40 @@
+name: Feature request
+description: Sugerir uma melhoria ou novo cenário
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema ou necessidade
+      placeholder: "Como instrutor, eu preciso de ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposta
+      placeholder: "Adicionar um cenário de ..."
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Motor de simulação
+        - Interface
+        - Cenário
+        - Academia
+        - Documentação
+        - Build / release
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Restrições do projeto
+      options:
+        - label: A proposta mantém o app offline e sem permissões desnecessárias
+        - label: A proposta não copia material de terceiros
+        - label: A proposta preserva o caráter educacional e o disclaimer

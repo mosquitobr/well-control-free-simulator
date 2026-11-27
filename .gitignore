@@ -1,0 +1,42 @@
+# Gradle & Build outputs
+.gradle/
+.kotlin/
+build/
+**/build/
+dist/
+out/
+
+# Local IDE & machine-specific configuration
+.idea/
+*.iml
+.vscode/
+local.properties
+.DS_Store
+Thumbs.db
+
+# Secrets, signing material, credentials & tokens (OPSEC)
+keystore/
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.b64
+.env
+.env.*
+*secret*
+*token*
+keystore.properties
+
+# Packaged installers & binary artifacts
+*.apk
+*.aab
+*.msi
+*.exe
+*.deb
+*.AppImage
+*.tar.gz
+*.zip
+*.sha256
+SHA256SUMS.txt
