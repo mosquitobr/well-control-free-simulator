@@ -33,7 +33,7 @@ Unsigned Windows `.msi` installers trigger Microsoft Defender SmartScreen warnin
    git tag v1.0.0
    git push origin v1.0.0
    ```
-   The workflow `.github/workflows/release.yml` automatically detects `SIGNPATH_API_TOKEN` and `SIGNPATH_ORG_ID`, submits the `.msi` via `SignPath/github-action-submit-signing-request@v2`, waits for the signed binary, computes the final SHA-256 of the **signed** installer, regenerates the Winget manifest with the signed hash, and publishes everything to the GitHub Release.
+   The workflow `.github/workflows/release.yml` automatically detects `SIGNPATH_API_TOKEN` and `SIGNPATH_ORG_ID` (or variable `SIGNPATH_ORGANIZATION_ID`), uploads the unsigned MSI as a GitHub workflow artifact (`actions/upload-artifact@v4`) for SignPath origin verification, submits it via `signpath/github-action-submit-signing-request@v3` (`github-artifact-id`), downloads the signed MSI, extracts its `ProductCode`, computes the final SHA-256 of the **signed** installer, regenerates the Winget manifest with the signed hash, and publishes everything to the GitHub Release.
 
 > **Note:** While `SIGNPATH_API_TOKEN` and `SIGNPATH_ORG_ID` are not yet set, the workflow degrades gracefully and publishes the unsigned `.msi` with a clear warning so releases are never blocked.
 

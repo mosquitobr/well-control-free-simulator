@@ -67,10 +67,10 @@ jobs:
 
       # -----------------------------------------------------------------------
       # SignPath Foundation (Free OSS Code Signing for Windows SmartScreen)
-      # Configure after the repository is public and approved by SignPath.io:
+      # Uses official SignPath GitHub Artifact Origin Verification (v3):
       #   Secrets:
       #     - SIGNPATH_API_TOKEN  (required to enable automatic signing)
-      #     - SIGNPATH_ORG_ID     (required to enable automatic signing)
+      #     - SIGNPATH_ORG_ID     (or Variable SIGNPATH_ORGANIZATION_ID)
       #   Variables (optional overrides; defaults below):
       #     - SIGNPATH_PROJECT_SLUG          (default: well-control-free-simulator)
       #     - SIGNPATH_SIGNING_POLICY_SLUG   (default: release-signing)
@@ -82,36 +82,46 @@ jobs:
         shell: pwsh
         env:
           HAS_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
-          HAS_ORG: ${{ secrets.SIGNPATH_ORG_ID != '' }}
+          ORG_ID: ${{ secrets.SIGNPATH_ORG_ID || vars.SIGNPATH_ORGANIZATION_ID }}
         run: |
-          if ($env:HAS_TOKEN -eq 'true' -and $env:HAS_ORG -eq 'true') {
+          if ($env:HAS_TOKEN -eq 'true' -and -not [string]::IsNullOrWhiteSpace($env:ORG_ID)) {
             "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            Write-Host "[SignPath] Secrets detected — Windows MSI will be submitted for SignPath Foundation code signing."
+            Write-Host "[SignPath] Configuration detected — Windows MSI will be submitted for SignPath Foundation code signing."
           } else {
             "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             Write-Warning "[SignPath] SIGNPATH_API_TOKEN / SIGNPATH_ORG_ID not configured yet. Publishing unsigned MSI (see docs/SIGNPATH_AND_WINGET.md)."
           }
 
+      - name: Upload unsigned MSI artifact for SignPath origin verification
+        id: upload_unsigned_msi
+        if: steps.signpath_check.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows-msi
+          path: staging/installer-unsigned.msi
+          retention-days: 1
+
       - name: Sign Windows MSI with SignPath Foundation
         if: steps.signpath_check.outputs.enabled == 'true'
-        uses: SignPath/github-action-submit-signing-request@v2
+        uses: signpath/github-action-submit-signing-request@v3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID || vars.SIGNPATH_ORGANIZATION_ID }}
           project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'well-control-free-simulator' }}
           signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
           artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIG_SLUG || 'msi-installer' }}
-          input-file: staging/installer-unsigned.msi
-          output-file: dist/WellControlFreeSimulator-signed.msi
+          github-artifact-id: ${{ steps.upload_unsigned_msi.outputs.artifact-id }}
           wait-for-completion: true
+          output-artifact-directory: signed-msi
 
       - name: Finalize Windows artifacts, SHA-256 & Winget manifest
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
           $finalMsi = "dist\WellControlFreeSimulator-${version}-windows-x64.msi"
-          if (Test-Path "dist\WellControlFreeSimulator-signed.msi") {
-            Move-Item "dist\WellControlFreeSimulator-signed.msi" $finalMsi -Force
+          $signedCandidate = if (Test-Path "signed-msi") { Get-ChildItem "signed-msi" -Filter "*.msi" -Recurse | Select-Object -First 1 } else { $null }
+          if ($signedCandidate) {
+            Copy-Item $signedCandidate.FullName $finalMsi -Force
           } else {
             Copy-Item "staging\installer-unsigned.msi" $finalMsi -Force
           }
@@ -119,9 +129,19 @@ jobs:
           $portableZip = "dist\WellControlFreeSimulator-${version}-windows-x64-portable.zip"
           Compress-Archive -Path "desktopApp\build\compose\binaries\main\app\ControleDePoco2\*" -DestinationPath $portableZip -Force
 
-          # Compute MSI SHA-256 for Winget manifest
+          # Extract real MSI ProductCode and SHA-256 for Winget manifest
+          $msiFull = (Resolve-Path $finalMsi).Path
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $db = $installer.GetType().InvokeMember("OpenDatabase", "InvokeMethod", $null, $installer, @($msiFull, 0))
+          $view = $db.GetType().InvokeMember("OpenView", "InvokeMethod", $null, $db, @("SELECT Value FROM Property WHERE Property = 'ProductCode'"))
+          $view.GetType().InvokeMember("Execute", "InvokeMethod", $null, $view, $null) | Out-Null
+          $rec = $view.GetType().InvokeMember("Fetch", "InvokeMethod", $null, $view, $null)
+          $productCode = $rec.GetType().InvokeMember("StringData", "GetProperty", $null, $rec, 1)
+          $view.GetType().InvokeMember("Close", "InvokeMethod", $null, $view, $null) | Out-Null
+          [System.Runtime.Interopservices.Marshal]::ReleaseComObject($db) | Out-Null
+
           $msiHash = (Get-FileHash $finalMsi -Algorithm SHA256).Hash.ToUpper()
-          python scripts/generate-winget-manifest.py --version $version --sha256 $msiHash --output-dir "dist\winget-manifest"
+          python scripts/generate-winget-manifest.py --version $version --sha256 $msiHash --product-code "$productCode" --output-dir "dist\winget-manifest"
           Compress-Archive -Path "dist\winget-manifest\*" -DestinationPath "dist\WellControlFreeSimulator-${version}-winget-manifest.zip" -Force
           Remove-Item -Recurse -Force "dist\winget-manifest"
 

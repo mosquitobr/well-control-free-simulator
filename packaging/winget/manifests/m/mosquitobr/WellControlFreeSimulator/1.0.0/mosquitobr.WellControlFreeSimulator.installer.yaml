@@ -13,7 +13,7 @@ InstallModes:
   - silent
   - silentWithProgress
 UpgradeBehavior: install
-ProductCode: '{REPLACE_WITH_MSI_PRODUCT_CODE_FROM_RELEASE}'
+ProductCode: '{FE552FAC-2455-370F-A133-3EB9A2567276}'
 AppsAndFeaturesEntries:
   - DisplayName: ControleDePoco2
     Publisher: mosquitobr
@@ -21,6 +21,6 @@ AppsAndFeaturesEntries:
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/mosquitobr/well-control-free-simulator/releases/download/v1.0.0/WellControlFreeSimulator-1.0.0-windows-x64.msi
-    InstallerSha256: REPLACE_WITH_64_HEX_UPPERCASE_SHA256_OF_RELEASE_MSI
+    InstallerSha256: C1C3109372B5F1C5B660D69A081A7170355C9DDD9823A96C8FCEFAA8CBB22F60
 ManifestType: installer
 ManifestVersion: 1.9.0
